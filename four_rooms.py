@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 import imageio
 import numpy as np
 import skimage.draw
