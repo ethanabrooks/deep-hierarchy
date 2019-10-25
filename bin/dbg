@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+cd "bin/"
+cmd=$(./wtf.zsh "$@" | ./remove-log.zsh)
+cd -
+echo "\n$cmd"
+eval "$cmd"
