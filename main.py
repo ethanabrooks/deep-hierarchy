@@ -5,7 +5,6 @@ import csv
 import itertools
 import random
 import subprocess
-from StringIO import StringIO
 from pathlib import Path
 
 import torch
@@ -18,6 +17,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from four_rooms import FourRooms
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 class Net(nn.Module):
