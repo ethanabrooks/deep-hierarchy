@@ -151,6 +151,7 @@ def main(
             index = int(run_id[-1])
         except ValueError:
             index = random.randrange(0, n_gpu)
+        print('Using GPU', index)
         device = torch.device("cuda", index=index % n_gpu)
     else:
         device = "cpu"
