@@ -47,7 +47,7 @@ class FourRooms(Dataset):
     def __getitem__(self, index):
         self.random, _ = np_random(index)
 
-        start = 4 * self.random.random(2) - 2  # scale to [-2, 2]
+        start = 4 * self.random.rand(2) - 2  # scale to [-2, 2]
         points = list(
             self.generate_points(
                 pos=start,
@@ -141,10 +141,10 @@ class FourRooms(Dataset):
             if is_door(*node):
                 # randomly sample in 180 oriented toward new room
                 heading = np.arctan2(*(new_node - node))
-                rad = heading + (self.random.random() - 0.5) * np.pi
+                rad = heading + (self.random.rand() - 0.5) * np.pi
             else:
                 # randomly sample in 360
-                rad = self.random.random() * 2 * np.pi
+                rad = self.random.rand() * 2 * np.pi
             final_pos = pos + np.array([-np.sin(rad), np.cos(rad)]) * (distance - 1e-5)
             in_world = np.max(np.abs(final_pos)) < 2
             in_room = np.all(np.sign(final_pos) == new_node)
