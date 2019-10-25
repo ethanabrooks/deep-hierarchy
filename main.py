@@ -1,7 +1,11 @@
 from __future__ import print_function
 
 import argparse
+import csv
 import itertools
+import random
+import subprocess
+from StringIO import StringIO
 from pathlib import Path
 
 import torch
@@ -110,6 +114,7 @@ def main(
     lr: float,
     log_interval: int,
     log_dir: Path,
+    run_id: str,
     four_rooms_args: dict,
 ):
     use_cuda = not no_cuda and torch.cuda.is_available()
@@ -117,7 +122,19 @@ def main(
 
     torch.manual_seed(seed)
 
-    device = torch.device("cuda" if use_cuda else "cpu")
+    if use_cuda:
+        nvidia_smi = subprocess.check_output(
+            "nvidia-smi --format=csv --query-gpu=memory.free".split(),
+            universal_newlines=True,
+        )
+        n_gpu = len(list(csv.reader(StringIO(nvidia_smi)))) - 1
+        try:
+            index = int(run_id[-1])
+        except ValueError:
+            index = random.randrange(0, n_gpu)
+        device = torch.device("cuda", index=index % n_gpu)
+    else:
+        device = "cpu"
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
@@ -186,6 +203,7 @@ def cli():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
+    parser.add_argument("--run-id", default="", metavar="N", help="")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
     # four_rooms_parser.add_argument("--room-size", type=int, default=100)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
