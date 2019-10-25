@@ -8,7 +8,6 @@ import subprocess
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from rl_utils import hierarchical_parse_args
@@ -17,43 +16,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from four_rooms import FourRooms
+from network import Net
 
 try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 20, 5, 1, padding=2)
-        self.max_pool1 = nn.MaxPool2d(kernel_size=5, stride=5, return_indices=True)
-        self.conv2 = nn.Conv2d(20, 50, 5, 1, padding=2)
-        self.max_pool2 = nn.MaxPool2d(kernel_size=5, stride=5, return_indices=True)
-        self.fc1 = nn.Linear(4 * 4 * 50, 500)
-        self.fc2 = nn.Linear(500, 4 * 4 * 50)
-        self.de_conv1 = nn.ConvTranspose2d(50, 20, 5, 1, padding=2)
-        self.max_un_pool1 = nn.MaxUnpool2d(kernel_size=5, stride=5)
-        self.de_conv2 = nn.ConvTranspose2d(20, 1, 5, 1, padding=2)
-        self.max_un_pool2 = nn.MaxUnpool2d(kernel_size=5, stride=5)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        size1 = x.size()
-        x, indices1 = self.max_pool1(x)
-        x = F.relu(self.conv2(x))
-        size2 = x.size()
-        x, indices2 = self.max_pool2(x)
-        x = x.view(-1, 4 * 4 * 50)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = x.view(-1, 50, 4, 4)
-        x = self.max_un_pool1(x, indices2, size2)
-        x = F.relu(self.de_conv1(x))
-        x = self.max_un_pool2(x, indices1, size1)
-        x = self.de_conv2(x)
-        return x.view(-1, 101, 101)
 
 
 def train(
@@ -151,7 +119,7 @@ def main(
             index = int(run_id[-1])
         except ValueError:
             index = random.randrange(0, n_gpu)
-        print('Using GPU', index)
+        print("Using GPU", index)
         device = torch.device("cuda", index=index % n_gpu)
     else:
         device = "cpu"
