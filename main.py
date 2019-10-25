@@ -68,6 +68,7 @@ def main(
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
+    log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
@@ -75,7 +76,6 @@ def main(
         loss = F.mse_loss(output, target)
         loss.backward()
         optimizer.step()
-        log_progress = None
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
             writer.add_scalar("train loss", loss.item(), global_step=i)
