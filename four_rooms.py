@@ -1,14 +1,13 @@
 #! /usr/bin/env python
 import argparse
+import itertools
 
-import imageio
 import numpy as np
 import skimage.draw
 import skimage.transform
+import torch
 from gym.utils.seeding import np_random
 from torch.utils.data import Dataset
-import torch
-import itertools
 
 
 def adjacent_sign(k):

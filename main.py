@@ -1,4 +1,5 @@
 from __future__ import print_function
+
 import argparse
 from pathlib import Path
 
@@ -10,7 +11,6 @@ from rl_utils import hierarchical_parse_args
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets, transforms
 
 from four_rooms import FourRooms
 
