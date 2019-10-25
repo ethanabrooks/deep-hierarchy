@@ -49,6 +49,7 @@ class FourRooms(Dataset):
             self.empty_rooms[rr, cc] = val
 
     def __getitem__(self, index):
+        self.random, _ = np_random(index)  # TODO: is this helpful?
         start = 4 * self.random.random(2) - 2  # scale to [-2, 2]
         points = list(
             self.generate_points(
@@ -58,40 +59,27 @@ class FourRooms(Dataset):
                 start=start,
             )
         )
-        print(points)
         scaled_points = list(map(self.scale, points))
         x1 = self.draw_points(scaled_points[0], array=np.zeros_like(self.empty_rooms))
         x2 = self.draw_points(scaled_points[-1], array=np.zeros_like(self.empty_rooms))
         x = np.stack([x1, x2, self.empty_rooms], axis=0)
         y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
-
-        # print(self.downscale(x))
-        # print(self.downscale(y))
-
-        # x1 = np.flip(
-        #     np.flip(
-        #         self.draw_points(*scaled_points, array=np.copy(self.empty_rooms)),
-        #         axis=0,
-        #     ),
-        #     axis=0,
-        # )
-        y1 = np.flip(
-            self.draw_lines(*scaled_points, array=np.copy(self.empty_rooms)), axis=0
-        )
-        imageio.imwrite("/tmp/x.png", np.rot90(x.sum(0)))
-        imageio.imwrite("/tmp/y.png", np.rot90(y))
         return torch.tensor(x), torch.tensor(y)
 
     def downscale(self, a):
-        factor = self.downscale_factor
-        return factor * skimage.transform.downscale_local_mean(a, (factor, factor))
+        return self.downscale_factor * skimage.transform.downscale_local_mean(
+            a, (self.downscale_factor, self.downscale_factor)
+        )
 
     @staticmethod
     def draw_points(*points, array):
         for point in points:
-            rr, cc = skimage.draw.circle(*point, 2)
-            i, j = array.shape
-            array[rr[rr < i], cc[cc < j]] = 1
+            rr, cc = skimage.draw.circle(*point, 1)
+            # i, j = array.shape
+            # condition = np.logical_and(rr < i, cc < j)
+            # rr = rr[condition]
+            # cc = cc[condition]
+            array[rr, cc] = 1
         return array
 
     @staticmethod
@@ -103,21 +91,11 @@ class FourRooms(Dataset):
 
     def scale(self, p):
         """ scale to array size """
+        # virtual graph is 4 x 4 [(-2, -2), (-2, 2)]
         return np.round((np.array(p) + 2) * self.size / 4).astype(int)
 
     def generate_points(self, pos, distance, explored, start):
         yield pos
-        #
-        # print(
-        #     np.flip(
-        #         self.downscale(
-        #             self.draw_points(self.scale(pos), array=np.copy(self.empty_rooms))
-        #         ),
-        #         axis=0,
-        #     )
-        # )
-        # print(pos)
-        # print(explored)
 
         def is_door(*n):
             return 0 in n
@@ -158,7 +136,7 @@ class FourRooms(Dataset):
                 )
                 return
 
-        # terminate at tooms
+        # terminate at rooms
         for i in range(10):
             if is_door(*node):
                 # randomly sample in 180 oriented toward new room
@@ -167,7 +145,7 @@ class FourRooms(Dataset):
             else:
                 # randomly sample in 360
                 rad = self.random.random() * 2 * np.pi
-            final_pos = pos + np.array([-np.sin(rad), np.cos(rad)]) * distance
+            final_pos = pos + np.array([-np.sin(rad), np.cos(rad)]) * (distance - 1e-5)
             in_world = np.max(np.abs(final_pos)) < 2
             in_room = np.all(np.sign(final_pos) == new_node)
             if not in_world or not in_room:
@@ -182,7 +160,7 @@ class FourRooms(Dataset):
                 edges.sort(axis=0)
                 _, low, high, _ = edges
                 final_pos = self.random.uniform(low, high)
-            if get_distance(*final_pos, *pos) < distance:
+            if get_distance(*final_pos, *pos) <= distance:
                 if np.all(new_node == -start_node):  # opposite room
                     # in the opposite room, we need to make sure that it wouldn't
                     # have been quicker to take the other way around the loop
@@ -199,24 +177,10 @@ class FourRooms(Dataset):
                     current_advantage = compute_advantage(final_pos, new_node)
                     initial_advantage = compute_advantage(start, start_node)
                     if current_advantage + initial_advantage < 0:
-                        print("bad advantage")
                         continue
 
                 yield final_pos
                 return
-            else:
-                print("bad distance")
-
-        # print(
-        #     np.flip(
-        #         self.downscale(
-        #             self.draw_points(self.scale(pos), array=np.copy(self.empty_rooms))
-        #         ),
-        #         axis=1,
-        #     ).T
-        # )
-        # print(pos)
-        # yield next_node
 
 
 if __name__ == "__main__":
