@@ -64,6 +64,7 @@ def train(
     optimizer: Optimizer,
     epoch: int,
     writer: SummaryWriter,
+    iteration: int,
 ):
     network.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -74,9 +75,18 @@ def train(
         loss.backward()
         optimizer.step()
         if batch_idx % log_interval == 0:
-            writer.add_scalar("train loss", loss.item())
+            writer.add_scalar(
+                "train loss",
+                loss.item(),
+                global_step=iteration * len(train_loader) + batch_idx,
+            )
             img = format_image(data, output, target)
-            writer.add_images("train image", img, dataformats="NCHW")
+            writer.add_images(
+                "train image",
+                img,
+                dataformats="NCHW",
+                global_step=iteration * len(train_loader) + batch_idx,
+            )
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                     epoch,
@@ -92,7 +102,9 @@ def format_image(data, output, target):
     return torch.stack([data.sum(1)[0], target[0], output[0]], dim=0).unsqueeze(1)
 
 
-def test(network: Net, device, test_loader: DataLoader, writer: SummaryWriter):
+def test(
+    network: Net, device, test_loader: DataLoader, writer: SummaryWriter, iteration: int
+):
     network.eval()
     test_loss = 0
     with torch.no_grad():
@@ -102,9 +114,12 @@ def test(network: Net, device, test_loader: DataLoader, writer: SummaryWriter):
             test_loss += F.mse_loss(output, target).item()  # sum up batch loss
 
     test_loss /= len(test_loader.dataset)
-    writer.add_scalar("test loss", test_loss)
+    writer.add_scalar("test loss", test_loss, global_step=iteration)
     writer.add_images(
-        "test image", format_image(data, output, target), dataformats="NCHW"
+        "test image",
+        format_image(data, output, target),
+        dataformats="NCHW",
+        global_step=iteration,
     )
 
     print("\nTest set: Average loss: {:.4f}, \n".format(test_loss))
@@ -166,8 +181,15 @@ def main(
             optimizer=optimizer,
             epoch=epoch,
             writer=writer,
+            iteration=epoch,
         )
-        test(network=network, device=device, test_loader=test_loader, writer=writer)
+        test(
+            network=network,
+            device=device,
+            test_loader=test_loader,
+            writer=writer,
+            iteration=epoch,
+        )
 
     torch.save(network.state_dict(), "mnist_cnn.pt")
     torch.save(network.state_dict(), str(Path(log_dir, "classifier.pt")))
