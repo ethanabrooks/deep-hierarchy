@@ -28,16 +28,15 @@ def get_distance(x1, y1, x2, y2):
 
 
 class FourRooms(Dataset):
-    def __init__(self, size: int, distance: float, seed: int = 0, downscale: int = 5):
+    def __init__(self, room_size: int, distance: float, downscale: int = 5):
         self.downscale_factor = downscale
-        self.random, _ = np_random(seed)
-        self.seed = seed
-        self.size = size
-        assert size % 10 == 0
+        self.random = None
+        self.size = room_size
+        assert room_size % 10 == 0
         self.distance = distance
-        self.empty_rooms = np.zeros((size + 1, size + 1))
-        scale = size // 10
-        mid = size // 2
+        self.empty_rooms = np.zeros((room_size + 1, room_size + 1))
+        scale = room_size // 10
+        mid = room_size // 2
         for start in [0, 3, 5, 8]:
             a = start * scale
             b = (start + 2) * scale
@@ -49,7 +48,8 @@ class FourRooms(Dataset):
             self.empty_rooms[rr, cc] = val
 
     def __getitem__(self, index):
-        self.random, _ = np_random(index)  # TODO: is this helpful?
+        self.random, _ = np_random(index)
+
         start = 4 * self.random.random(2) - 2  # scale to [-2, 2]
         points = list(
             self.generate_points(
@@ -190,22 +190,3 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=0)
     np.set_printoptions(linewidth=1000, threshold=1000)
     dataset = FourRooms(**vars(parser.parse_args()))
-    dataset[0]
-    # for point in
-
-
-# size = 100
-# img = np.zeros((size + 1, size + 1))
-# scale = size // 10
-# mid = size // 2
-# for start in [0, 3, 5, 8]:
-#     a = start * scale
-#     b = (start + 2) * scale
-#     rr, cc, val = skimage.draw.line_aa(a, mid, b, mid)
-#     img[rr, cc] = val
-#     rr, cc, val = skimage.draw.line_aa(mid, a, mid, b)
-#     img[rr, cc] = val
-# rr, cc, val = skimage.draw.line_aa(50, 25, 25, 50)
-# img[rr, cc] = val
-# # img = skimage.transform.rescale(img, 0.25)
-# imageio.imwrite("/tmp/img.png", img)
