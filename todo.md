@@ -2,3 +2,4 @@
 - for bfs, terminate all leaf nodes simultaneously
 - condition decision to terminate on all leaf nodes
 - cast subgoals back into goal space at each level
+- curriculum

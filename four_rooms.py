@@ -40,8 +40,6 @@ class FourRooms(Dataset):
         for start in [0, 3, 5, 8]:
             a = start * scale
             b = (start + 2) * scale
-            print("a", a)
-            print("b", b)
             rr, cc, val = skimage.draw.line_aa(a, mid, b, mid)
             self.empty_rooms[rr, cc] = val
             rr, cc, val = skimage.draw.line_aa(mid, a, mid, b)
@@ -64,7 +62,10 @@ class FourRooms(Dataset):
         x2 = self.draw_points(scaled_points[-1], array=np.zeros_like(self.empty_rooms))
         x = np.stack([x1, x2, self.empty_rooms], axis=0)
         y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
-        return torch.tensor(x), torch.tensor(y)
+        return (
+            torch.tensor(x, dtype=torch.float32),
+            torch.tensor(y, dtype=torch.float32),
+        )
 
     def downscale(self, a):
         return self.downscale_factor * skimage.transform.downscale_local_mean(
@@ -181,6 +182,9 @@ class FourRooms(Dataset):
 
                 yield final_pos
                 return
+
+    def __len__(self):
+        return int(1e6)
 
 
 if __name__ == "__main__":
