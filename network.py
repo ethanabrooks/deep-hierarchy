@@ -6,7 +6,7 @@ class Net(nn.Module):
         super(Net, self).__init__()
         # Convolution 1
         self.conv1 = nn.Conv2d(
-            in_channels=3, out_channels=16, kernel_size=4, stride=1, padding=0
+            in_channels=2, out_channels=16, kernel_size=4, stride=1, padding=0
         )
         nn.init.xavier_uniform(self.conv1.weight)  # Xaviers Initialisation
         self.swish1 = nn.ReLU()

@@ -36,7 +36,7 @@ class FourRooms(Dataset):
         self.size = room_size
         assert room_size % 10 == 0
         self.distance = distance
-        self.empty_rooms = np.zeros((room_size + 1, room_size + 1))
+        self.empty_rooms = np.zeros((room_size + 1, room_size + 1), dtype=np.float32)
         scale = room_size // 10
         mid = room_size // 2
         for start in [0, 3, 5, 8]:
@@ -60,14 +60,12 @@ class FourRooms(Dataset):
             )
         )
         scaled_points = list(map(self.scale, points))
-        x1 = self.draw_points(scaled_points[0], array=np.zeros_like(self.empty_rooms))
-        x2 = self.draw_points(scaled_points[-1], array=np.zeros_like(self.empty_rooms))
-        x = np.stack([x1, x2, self.empty_rooms], axis=0)
-        y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
-        return (
-            torch.tensor(x, dtype=torch.float32),
-            torch.tensor(y, dtype=torch.float32),
+        x = self.draw_points(
+            scaled_points[0], scaled_points[-1], array=np.zeros_like(self.empty_rooms)
         )
+        x = np.stack([x, self.empty_rooms], axis=0)
+        y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
+        return x, y
 
     def downscale(self, a):
         return self.downscale_factor * skimage.transform.downscale_local_mean(
