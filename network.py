@@ -1,38 +1,48 @@
 from torch import nn as nn
 
 
+def eval_activation(string):
+    return eval(f"nn.{string}")
+
+
+def eval_init(string):
+    return eval(f"nn.init.{string}")
+
+
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, activation, init):
         super(Net, self).__init__()
+        activation = activation or nn.ReLU
+        init = init or nn.init.xavier_uniform_
         # Convolution 1
         self.conv1 = nn.Conv2d(
             in_channels=2, out_channels=16, kernel_size=4, stride=1, padding=0
         )
-        nn.init.xavier_uniform(self.conv1.weight)  # Xaviers Initialisation
-        self.swish1 = nn.ReLU()
+        init(self.conv1.weight)
+        self.swish1 = activation()
 
         # Max Pool 1
         self.maxpool1 = nn.MaxPool2d(kernel_size=2, return_indices=True)
 
         # Convolution 2
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5)
-        nn.init.xavier_uniform(self.conv2.weight)
-        self.swish2 = nn.ReLU()
+        init(self.conv2.weight)
+        self.swish2 = activation()
 
         # Max Pool 2
         self.maxpool2 = nn.MaxPool2d(kernel_size=2, return_indices=True)
 
         # Convolution 3
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3)
-        nn.init.xavier_uniform(self.conv3.weight)
-        self.swish3 = nn.ReLU()
+        init(self.conv3.weight)
+        self.swish3 = activation()
 
         # De Convolution 1
         self.deconv1 = nn.ConvTranspose2d(
             in_channels=64, out_channels=32, kernel_size=3
         )
-        nn.init.xavier_uniform(self.deconv1.weight)
-        self.swish4 = nn.ReLU()
+        init(self.deconv1.weight)
+        self.swish4 = activation()
 
         # Max UnPool 1
         self.maxunpool1 = nn.MaxUnpool2d(kernel_size=2)
@@ -41,16 +51,16 @@ class Net(nn.Module):
         self.deconv2 = nn.ConvTranspose2d(
             in_channels=32, out_channels=16, kernel_size=5
         )
-        nn.init.xavier_uniform(self.deconv2.weight)
-        self.swish5 = nn.ReLU()
+        init(self.deconv2.weight)
+        self.swish5 = activation()
 
         # Max UnPool 2
         self.maxunpool2 = nn.MaxUnpool2d(kernel_size=2)
 
         # DeConvolution 3
         self.deconv3 = nn.ConvTranspose2d(in_channels=16, out_channels=1, kernel_size=4)
-        nn.init.xavier_uniform(self.deconv3.weight)
-        self.swish6 = nn.ReLU()
+        init(self.deconv3.weight)
+        self.swish6 = activation()
 
     def forward(self, x):
         x = self.conv1(x)
@@ -71,4 +81,4 @@ class Net(nn.Module):
         x = self.swish5(x)
         x = self.maxunpool2(x, indices1, size1)
         x = self.deconv3(x)
-        return x.view(-1, 101, 101)
+        return x.squeeze(1)

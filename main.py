@@ -11,13 +11,12 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from rl_utils import hierarchical_parse_args
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from four_rooms import FourRooms
-from network import Net
+from network import Net, eval_activation, eval_init
 
 try:
     from StringIO import StringIO
@@ -39,6 +38,7 @@ def main(
     log_dir: Path,
     run_id: str,
     four_rooms_args: dict,
+    network_args: dict,
 ):
     use_cuda = not no_cuda and torch.cuda.is_available()
     writer = SummaryWriter(str(log_dir))
@@ -62,9 +62,9 @@ def main(
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
-        FourRooms(**four_rooms_args, room_size=100), batch_size=batch_size, **kwargs
+        FourRooms(**four_rooms_args), batch_size=batch_size, **kwargs
     )
-    network = Net().to(device)
+    network = Net(**network_args).to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
@@ -75,14 +75,14 @@ def main(
         loss = F.mse_loss(output, target)
         loss.backward()
         optimizer.step()
+        log_progress = None
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
             writer.add_scalar("train loss", loss.item(), global_step=i)
             img = format_image(data, output, target)
             writer.add_images("train image", img, dataformats="NCHW", global_step=i)
         if i % save_interval == 0:
-            torch.save(network.state_dict(), "mnist_cnn.pt")
-            torch.save(network.state_dict(), str(Path(log_dir, "classifier.pt")))
+            torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
 
 
@@ -122,9 +122,12 @@ def cli():
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
-    # four_rooms_parser.add_argument("--room-size", type=int, default=100)
+    four_rooms_parser.add_argument("--room-size", type=int, default=100)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
     four_rooms_parser.add_argument("--len-dataset", type=int, default=int(1e5), help="")
+    network_parser = parser.add_argument_group("network_args")
+    network_parser.add_argument("--activation", type=eval_activation, default=None)
+    network_parser.add_argument("--init", type=eval_init, default=None)
     main(**hierarchical_parse_args(parser))
 
 
