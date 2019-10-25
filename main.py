@@ -53,7 +53,7 @@ def main(
         n_gpu = len(list(csv.reader(StringIO(nvidia_smi)))) - 1
         try:
             index = int(run_id[-1])
-        except ValueError:
+        except (ValueError, IndexError):
             index = random.randrange(0, n_gpu)
         print("Using GPU", index)
         device = torch.device("cuda", index=index % n_gpu)
