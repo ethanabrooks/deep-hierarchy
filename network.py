@@ -10,75 +10,89 @@ def eval_init(string):
 
 
 class Net(nn.Module):
-    def __init__(self, activation, init):
+    def __init__(self, activation, init, num_layers, kernel_size):
         super(Net, self).__init__()
         activation = activation or nn.ReLU
         init = init or nn.init.xavier_uniform_
-        # Convolution 1
-        self.conv1 = nn.Conv2d(
-            in_channels=2, out_channels=16, kernel_size=4, stride=1, padding=0
+        assert num_layers % 2 == 0
+        assert kernel_size % 2 == 1
+        in_channels = 2
+        out_channels = 16
+        self.conv = nn.ModuleList()
+        for i in range(num_layers // 2 - 1):
+            self.conv.append(
+                nn.Sequential(
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        padding=kernel_size // 2,
+                    ),
+                    activation(),
+                    nn.MaxPool2d(kernel_size=kernel_size, return_indices=True),
+                )
+            )
+            in_channels = out_channels
+            out_channels *= 2
+        self.conv.append(
+            nn.Sequential(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    padding=kernel_size // 2,
+                ),
+                activation(),
+            )
         )
-        init(self.conv1.weight)
-        self.swish1 = activation()
-
-        # Max Pool 1
-        self.maxpool1 = nn.MaxPool2d(kernel_size=2, return_indices=True)
-
-        # Convolution 2
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5)
-        init(self.conv2.weight)
-        self.swish2 = activation()
-
-        # Max Pool 2
-        self.maxpool2 = nn.MaxPool2d(kernel_size=2, return_indices=True)
-
-        # Convolution 3
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3)
-        init(self.conv3.weight)
-        self.swish3 = activation()
-
-        # De Convolution 1
-        self.deconv1 = nn.ConvTranspose2d(
-            in_channels=64, out_channels=32, kernel_size=3
+        self.max_un_pool = nn.ModuleList()
+        self.de_conv = nn.ModuleList()
+        for i in range(num_layers // 2 - 1):
+            in_channels = out_channels
+            out_channels //= 2
+            self.de_conv.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        kernel_size=kernel_size,
+                        padding=kernel_size // 2,
+                    ),
+                    activation(),
+                )
+            )
+            self.max_un_pool.append(nn.MaxUnpool2d(kernel_size=kernel_size))
+        self.de_conv.append(
+            nn.Sequential(
+                nn.ConvTranspose2d(
+                    in_channels=out_channels,
+                    out_channels=1,
+                    kernel_size=kernel_size,
+                    padding=kernel_size // 2,
+                ),
+                activation(),
+            )
         )
-        init(self.deconv1.weight)
-        self.swish4 = activation()
 
-        # Max UnPool 1
-        self.maxunpool1 = nn.MaxUnpool2d(kernel_size=2)
-
-        # De Convolution 2
-        self.deconv2 = nn.ConvTranspose2d(
-            in_channels=32, out_channels=16, kernel_size=5
-        )
-        init(self.deconv2.weight)
-        self.swish5 = activation()
-
-        # Max UnPool 2
-        self.maxunpool2 = nn.MaxUnpool2d(kernel_size=2)
-
-        # DeConvolution 3
-        self.deconv3 = nn.ConvTranspose2d(in_channels=16, out_channels=1, kernel_size=4)
-        init(self.deconv3.weight)
-        self.swish6 = activation()
+        for module_list in [self.conv, self.de_conv]:
+            for layer in module_list:
+                for param in layer.parameters():
+                    if len(param.shape) > 1:
+                        init(param)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.swish1(x)
-        size1 = x.size()
-        x, indices1 = self.maxpool1(x)
-        x = self.conv2(x)
-        x = self.swish2(x)
-        size2 = x.size()
-        x, indices2 = self.maxpool2(x)
-        x = self.conv3(x)
-        x = self.swish3(x)
+        sizes = []
+        indices = []
+        for conv in self.conv[:-1]:
+            sizes.append(x.size())
+            x, i = conv(x)
+            indices.append(i)
 
-        x = self.deconv1(x)
-        x = self.swish4(x)
-        x = self.maxunpool1(x, indices2, size2)
-        x = self.deconv2(x)
-        x = self.swish5(x)
-        x = self.maxunpool2(x, indices1, size1)
-        x = self.deconv3(x)
+        x = self.conv[-1](x)
+        for de_conv, un_pool, i, size in zip(
+            self.de_conv, self.max_un_pool, reversed(indices), reversed(sizes)
+        ):
+            x = de_conv(x)
+            x = un_pool(x, i, size)
+        x = self.de_conv[-1](x)
         return x.squeeze(1)

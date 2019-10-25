@@ -128,6 +128,8 @@ def cli():
     network_parser = parser.add_argument_group("network_args")
     network_parser.add_argument("--activation", type=eval_activation, default=None)
     network_parser.add_argument("--init", type=eval_init, default=None)
+    network_parser.add_argument("--num-layers", type=int, default=6)
+    network_parser.add_argument("--kernel-size", type=int, default=5)
     main(**hierarchical_parse_args(parser))
 
 
