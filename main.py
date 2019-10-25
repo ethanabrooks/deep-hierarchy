@@ -46,23 +46,16 @@ def train(
             writer.add_scalar(
                 "train loss",
                 loss.item(),
-                global_step=iteration * len(train_loader) + batch_idx,
+                global_step=batch_idx
+                # global_step=iteration * len(train_loader) + batch_idx,
             )
             img = format_image(data, output, target)
             writer.add_images(
                 "train image",
                 img,
                 dataformats="NCHW",
-                global_step=iteration * len(train_loader) + batch_idx,
-            )
-            print(
-                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                    epoch,
-                    batch_idx * len(data),
-                    len(train_loader.dataset),
-                    100.0 * batch_idx / len(train_loader),
-                    loss.item(),
-                )
+                global_step=batch_idx
+                # global_step=iteration * len(train_loader) + batch_idx,
             )
 
 
@@ -126,15 +119,11 @@ def main(
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
-        FourRooms(**four_rooms_args, room_size=100),
-        batch_size=batch_size,
-        shuffle=True,
-        **kwargs
+        FourRooms(**four_rooms_args, room_size=100), batch_size=batch_size, **kwargs
     )
     test_loader = torch.utils.data.DataLoader(
         FourRooms(**four_rooms_args, room_size=100),
         batch_size=test_batch_size,
-        shuffle=True,
         **kwargs
     )
 

@@ -8,6 +8,7 @@ import skimage.transform
 import torch
 from gym.utils.seeding import np_random
 from torch.utils.data import Dataset
+from torch.utils.data.dataset import IterableDataset
 
 
 def adjacent_sign(k):
@@ -26,13 +27,18 @@ def get_distance(x1, y1, x2, y2):
     return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
 
 
-class FourRooms(Dataset):
+class FourRooms(IterableDataset):
     def __init__(
-        self, room_size: int, distance: float, len_dataset: int, downscale: int = 5
+        self,
+        room_size: int,
+        distance: float,
+        len_dataset: int,
+        downscale: int = 5,
+        seed: int = 0,
     ):
+        self.random, _ = np_random(seed)
         self.len = len_dataset
         self.downscale_factor = downscale
-        self.random = None
         self.size = room_size
         assert room_size % 10 == 0
         self.distance = distance
@@ -47,25 +53,26 @@ class FourRooms(Dataset):
             rr, cc, val = skimage.draw.line_aa(mid, a, mid, b)
             self.empty_rooms[rr, cc] = val
 
-    def __getitem__(self, index):
-        self.random, _ = np_random(index)
-
-        start = 4 * self.random.rand(2) - 2  # scale to [-2, 2]
-        points = list(
-            self.generate_points(
-                pos=start,
-                distance=self.distance * 4 / self.size,
-                explored=set(),
-                start=start,
+    def __iter__(self):
+        while True:
+            start = 4 * self.random.rand(2) - 2  # scale to [-2, 2]
+            points = list(
+                self.generate_points(
+                    pos=start,
+                    distance=self.distance * 4 / self.size,
+                    explored=set(),
+                    start=start,
+                )
             )
-        )
-        scaled_points = list(map(self.scale, points))
-        x = self.draw_points(
-            scaled_points[0], scaled_points[-1], array=np.zeros_like(self.empty_rooms)
-        )
-        x = np.stack([x, self.empty_rooms], axis=0)
-        y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
-        return x, y
+            scaled_points = list(map(self.scale, points))
+            x = self.draw_points(
+                scaled_points[0],
+                scaled_points[-1],
+                array=np.zeros_like(self.empty_rooms),
+            )
+            x = np.stack([x, self.empty_rooms], axis=0)
+            y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
+            yield x, y
 
     def downscale(self, a):
         return self.downscale_factor * skimage.transform.downscale_local_mean(
