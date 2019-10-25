@@ -27,7 +27,10 @@ def get_distance(x1, y1, x2, y2):
 
 
 class FourRooms(Dataset):
-    def __init__(self, room_size: int, distance: float, downscale: int = 5):
+    def __init__(
+        self, room_size: int, distance: float, len_dataset: int, downscale: int = 5
+    ):
+        self.len = len_dataset
         self.downscale_factor = downscale
         self.random = None
         self.size = room_size
@@ -183,7 +186,7 @@ class FourRooms(Dataset):
                 return
 
     def __len__(self):
-        return int(1e6)
+        return self.len
 
 
 if __name__ == "__main__":

@@ -234,6 +234,7 @@ def cli():
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
     # four_rooms_parser.add_argument("--room-size", type=int, default=100)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
+    four_rooms_parser.add_argument("--len-dataset", type=int, default=int(2e5), help="")
     main(**hierarchical_parse_args(parser))
 
 
