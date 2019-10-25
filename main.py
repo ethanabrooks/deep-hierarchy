@@ -108,7 +108,6 @@ def main(
     batch_size: int,
     test_batch_size: int,
     lr: float,
-    epochs: int,
     log_interval: int,
     log_dir: Path,
     four_rooms_args: dict,
