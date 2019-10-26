@@ -167,7 +167,7 @@ def cli():
     deep_hierarchical_parser = parser.add_argument_group("deep_hierarchical_args")
     deep_hierarchical_parser.add_argument("--arity", type=int, default=2)
     deep_hierarchical_parser.add_argument("--num-gru-layers", type=int, default=2)
-    deep_hierarchical_parser.add_argument("--max-depth", type=int, default=8)
+    deep_hierarchical_parser.add_argument("--max-depth", type=int, default=5)
     main(**hierarchical_parse_args(parser))
 
 
