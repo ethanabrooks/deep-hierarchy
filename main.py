@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import argparse
 import csv
-import itertools
 import random
 import subprocess
 from pathlib import Path
@@ -16,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from four_rooms import FourRooms
-from network import ConvDeConvNet, eval_activation, eval_init
+from network import ConvDeConvNet
 
 try:
     from StringIO import StringIO
@@ -61,13 +60,9 @@ def main(
         device = "cpu"
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
-    dataset = FourRooms(**four_rooms_args)
+    dataset = FourRooms(**four_rooms_args, room_size=128)
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, **kwargs)
-    network = ConvDeConvNet(
-        **network_args,
-        input_channels=dataset.input_channels,
-        output_channels=dataset.output_channels
-    ).to(device)
+    network = ConvDeConvNet(**network_args, num_embeddings=dataset.size).to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
@@ -82,7 +77,11 @@ def main(
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
             writer.add_scalar("train loss", loss.item(), global_step=i)
-            img = format_image(data, output, target)
+            array = dataset.empty_rooms.copy()[: dataset.size, : dataset.size]
+            data_img = torch.tensor(
+                dataset.draw_points(data[0, :2], data[0, 2:4], array=array)
+            )
+            img = torch.stack([data_img, target[0], output[0]], dim=0).unsqueeze(1)
             writer.add_images("train image", img, dataformats="NCHW", global_step=i)
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
@@ -125,7 +124,7 @@ def cli():
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
-    four_rooms_parser.add_argument("--room-size", type=int, default=128)
+    # four_rooms_parser.add_argument("--room-size", type=int, default=128)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
     four_rooms_parser.add_argument("--len-dataset", type=int, default=int(1e5), help="")
     network_parser = parser.add_argument_group("network_args")

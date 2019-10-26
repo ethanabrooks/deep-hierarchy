@@ -36,7 +36,6 @@ class FourRooms(IterableDataset):
         downscale: int = 5,
         seed: int = 0,
     ):
-        self.input_channels = 2
         self.output_channels = 1
         self.random, _ = np_random(seed)
         self.len = len_dataset
@@ -67,14 +66,9 @@ class FourRooms(IterableDataset):
                 )
             )
             scaled_points = list(map(self.scale, points))
-            x = self.draw_points(
-                scaled_points[0],
-                scaled_points[-1],
-                array=np.zeros_like(self.empty_rooms),
-            )
-            x = np.stack([x, self.empty_rooms], axis=0)
+            x = np.concatenate([scaled_points[0], scaled_points[-1]])
             y = self.draw_lines(*scaled_points, array=np.zeros_like(self.empty_rooms))
-            yield x[:, : self.size, : self.size], y[: self.size, : self.size]
+            yield x, y[: self.size, : self.size]
 
     def downscale(self, a):
         return self.downscale_factor * skimage.transform.downscale_local_mean(
