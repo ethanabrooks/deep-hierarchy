@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from four_rooms import FourRooms
-from network import Net, eval_activation, eval_init
+from network import ConvDeConvNet, eval_activation, eval_init
 
 try:
     from StringIO import StringIO
@@ -64,7 +64,7 @@ def main(
     train_loader = torch.utils.data.DataLoader(
         FourRooms(**four_rooms_args), batch_size=batch_size, **kwargs
     )
-    network = Net(**network_args).to(device)
+    network = ConvDeConvNet(**network_args).to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
