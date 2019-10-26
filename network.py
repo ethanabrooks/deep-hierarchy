@@ -35,7 +35,7 @@ class ConvDeConvNet(nn.Module):
         return self.decoder(z).squeeze(1)
 
 
-class DeepHierarchicalNetwork(ConvDeConvNet):
+class DeepHierarchicalNet(ConvDeConvNet):
     def __init__(
         self,
         arity: int,
@@ -44,25 +44,28 @@ class DeepHierarchicalNetwork(ConvDeConvNet):
         max_depth: int,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(**kwargs, hidden_size=hidden_size)
         self.max_depth = max_depth
         self.arity = arity
         self.task_splitter = nn.GRU(hidden_size, hidden_size, num_layers=num_gru_layers)
-        self.task_gru = nn.GRU(
-            hidden_size, hidden_size, num_layers=num_gru_layers, bidirectional=True
+        self.task_gru = nn.GRU(hidden_size, hidden_size, bidirectional=True)
+        self.embedding2 = nn.Sequential(
+            nn.ReLU(True), nn.Linear(4 * self.embedding.embedding_dim, hidden_size)
         )
-        self.logits = nn.Linear(hidden_size, 2)
+        self.logits = nn.Linear(2 * hidden_size, 2)
 
     def decompose(self, task_matrix):
         for task in task_matrix:
-            gru_input = task.unsqueeze(0).expand((self.arity, 1, 1))
-            _, subtasks = self.task_splitter(gru_input)
+            gru_input = task.unsqueeze(0).expand((self.arity, -1, -1))
+            subtasks, _ = self.task_splitter(gru_input)
             yield subtasks
 
     def forward(self, x):
-        task = self.encode(x)  # type:torch.Tensor
+        task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
+        task = self.embedding2(task).unsqueeze(0)
         assert isinstance(task, torch.Tensor)
         not_done = torch.ones(x.size(0), 1)
+        N = torch.ones(x.size(0))
 
         # TODO depth first
         for _ in range(self.max_depth):
@@ -70,17 +73,22 @@ class DeepHierarchicalNetwork(ConvDeConvNet):
 
             # done
             _, task_encoding = self.task_gru(task)
-            one_hot = F.gumbel_softmax(
-                self.logits(task_encoding), hard=True
-            )  # TODO allow asymmetry
-            _, not_done = torch.split(not_done * one_hot, 2, dim=-1)  # done stays done
+            logits_input = task_encoding.transpose(0, 1).reshape(x.size(0), -1)
+            one_hot = F.gumbel_softmax(self.logits(logits_input), hard=True)
+            # TODO allow asymmetric tree
+            _, not_done = torch.split(not_done * one_hot, 1, dim=-1)  # done stays done
+            N *= 2 ** not_done.squeeze(-1)
 
             # decompose
             done = 1 - not_done
-            subtasks = torch.cat(list(self.decompose(task)), dim=-1)
+            subtasks = torch.cat(list(self.decompose(task)), dim=0)
+            task = torch.cat([task, task], dim=0)
             task = done * task + not_done * subtasks
 
         # combine outputs
+        import ipdb
+
+        ipdb.set_trace()
         output = torch.zeros(self.output_size)
         # TODO: batch this
         for g in task:

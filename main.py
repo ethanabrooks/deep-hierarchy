@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from four_rooms import FourRooms
-from network import ConvDeConvNet
+from network import ConvDeConvNet, DeepHierarchicalNet
 
 try:
     from StringIO import StringIO
@@ -36,8 +36,10 @@ def main(
     save_interval: int,
     log_dir: Path,
     run_id: str,
+    baseline: bool,
     four_rooms_args: dict,
-    network_args: dict,
+    baseline_args: dict,
+    deep_hierarchical_args: dict,
 ):
     use_cuda = not no_cuda and torch.cuda.is_available()
     writer = SummaryWriter(str(log_dir))
@@ -62,7 +64,12 @@ def main(
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     dataset = FourRooms(**four_rooms_args, room_size=128)
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, **kwargs)
-    network = ConvDeConvNet(**network_args, num_embeddings=dataset.size).to(device)
+    baseline_args.update(num_embeddings=dataset.size)
+    if baseline:
+        network = ConvDeConvNet(**baseline_args)
+    else:
+        network = DeepHierarchicalNet(**deep_hierarchical_args, **baseline_args)
+    network = network.to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
@@ -150,12 +157,17 @@ def cli():
     )
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
+    parser.add_argument("--baseline", action="store_true")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
     # four_rooms_parser.add_argument("--room-size", type=int, default=128)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
     four_rooms_parser.add_argument("--len-dataset", type=int, default=int(1e5), help="")
-    network_parser = parser.add_argument_group("network_args")
-    network_parser.add_argument("--hidden-size", type=int, default=64)
+    baseline_parser = parser.add_argument_group("baseline_args")
+    baseline_parser.add_argument("--hidden-size", type=int, default=64)
+    deep_hierarchical_parser = parser.add_argument_group("deep_hierarchical_args")
+    deep_hierarchical_parser.add_argument("--arity", type=int, default=2)
+    deep_hierarchical_parser.add_argument("--num-gru-layers", type=int, default=2)
+    deep_hierarchical_parser.add_argument("--max-depth", type=int, default=8)
     main(**hierarchical_parse_args(parser))
 
 
