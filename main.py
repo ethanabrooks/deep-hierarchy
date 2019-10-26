@@ -71,18 +71,45 @@ def main(
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = network(data)
-        loss = F.mse_loss(output, target)
-        loss.backward()
+        mean_mse_loss = F.mse_loss(output, target, reduction="mean")
+        mean_mse_loss.backward()
         optimizer.step()
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
-            writer.add_scalar("train loss", loss.item(), global_step=i)
-            array = dataset.empty_rooms.copy()[: dataset.size, : dataset.size]
+            array = dataset.empty_rooms.copy()
             data_img = torch.tensor(
-                dataset.draw_points(data[0, :2], data[0, 2:4], array=array)
-            )
+                dataset.draw_points(data[0, :2].cpu(), data[0, 2:4].cpu(), array=array),
+                device=device,
+            )[: dataset.size, : dataset.size]
             img = torch.stack([data_img, target[0], output[0]], dim=0).unsqueeze(1)
             writer.add_images("train image", img, dataformats="NCHW", global_step=i)
+            for name, loss in [
+                ("mean_mse_loss", mean_mse_loss),
+                ("sum_mse_loss", F.mse_loss(output, target, reduction="sum")),
+                ("sum_l1_loss", F.l1_loss(output, target, reduction="sum")),
+                ("mean_l1_loss", F.l1_loss(output, target, reduction="mean")),
+                (
+                    "sum_smooth_l1_loss",
+                    F.smooth_l1_loss(output, target, reduction="sum"),
+                ),
+                (
+                    "mean_smooth_l1_loss",
+                    F.smooth_l1_loss(output, target, reduction="mean"),
+                ),
+                (
+                    "mean_poisson_nll_loss",
+                    F.poisson_nll_loss(
+                        output, target, reduction="mean", log_input=False
+                    ),
+                ),
+                (
+                    "sum_poisson_nll_loss",
+                    F.poisson_nll_loss(
+                        output, target, reduction="sum", log_input=False
+                    ),
+                ),
+            ]:
+                writer.add_scalar(name, loss, global_step=i)
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
