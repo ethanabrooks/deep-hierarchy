@@ -15,9 +15,6 @@ class ConvDeConvNet(nn.Module):
     def __init__(self, input_channels: int, output_channels: int, hidden_size: int):
         super(ConvDeConvNet, self).__init__()
 
-        # Size of z latent vector (i.e. size of generator input)
-        nz = 100
-
         self.encoder = nn.Sequential(
             # input is (input_channels) x 64 x 64
             nn.Conv2d(input_channels, hidden_size, 4, 2, 1, bias=False),
@@ -66,11 +63,16 @@ class ConvDeConvNet(nn.Module):
         return self.decoder(z).squeeze(1)
 
 
-class DeepHierarchicalNetwork(nn.Module):
+class DeepHierarchicalNetwork(ConvDeConvNet):
     def __init__(
-        self, arity: int, hidden_size: int, num_gru_layers: int, max_depth: int
+        self,
+        arity: int,
+        hidden_size: int,
+        num_gru_layers: int,
+        max_depth: int,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.max_depth = max_depth
         self.arity = arity
         self.task_splitter = nn.GRU(hidden_size, hidden_size, num_layers=num_gru_layers)
@@ -86,23 +88,29 @@ class DeepHierarchicalNetwork(nn.Module):
             yield subtasks
 
     def forward(self, x):
-        task = self.convolve(x)  # type:torch.Tensor
+        task = self.encode(x)  # type:torch.Tensor
         assert isinstance(task, torch.Tensor)
         not_done = torch.ones(x.size(0), 1)
 
+        # TODO depth first
         for _ in range(self.max_depth):
+            # TODO: cast goals back into goal-space
 
             # done
             _, task_encoding = self.task_gru(task)
-            one_hot = F.gumbel_softmax(self.logits(task_encoding), hard=True)
+            one_hot = F.gumbel_softmax(
+                self.logits(task_encoding), hard=True
+            )  # TODO allow asymmetry
             _, not_done = torch.split(not_done * one_hot, 2, dim=-1)  # done stays done
-            done = 1 - not_done
 
             # decompose
+            done = 1 - not_done
             subtasks = torch.cat(list(self.decompose(task)), dim=-1)
             task = done * task + not_done * subtasks
 
+        # combine outputs
         output = torch.zeros(self.output_size)
+        # TODO: batch this
         for g in task:
-            output += self.deconvolve(g)
-        return output
+            output += self.decode(g)
+        return torch.sigmoid(output)  # TODO: other kinds of combination
