@@ -61,10 +61,13 @@ def main(
         device = "cpu"
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
-    train_loader = torch.utils.data.DataLoader(
-        FourRooms(**four_rooms_args), batch_size=batch_size, **kwargs
-    )
-    network = ConvDeConvNet(**network_args).to(device)
+    dataset = FourRooms(**four_rooms_args)
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, **kwargs)
+    network = ConvDeConvNet(
+        **network_args,
+        input_channels=dataset.input_channels,
+        output_channels=dataset.output_channels
+    ).to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
 
@@ -122,14 +125,11 @@ def cli():
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
-    four_rooms_parser.add_argument("--room-size", type=int, default=100)
+    four_rooms_parser.add_argument("--room-size", type=int, default=128)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
     four_rooms_parser.add_argument("--len-dataset", type=int, default=int(1e5), help="")
     network_parser = parser.add_argument_group("network_args")
-    network_parser.add_argument("--activation", type=eval_activation, default=None)
-    network_parser.add_argument("--init", type=eval_init, default=None)
-    network_parser.add_argument("--num-layers", type=int, default=6)
-    network_parser.add_argument("--kernel-size", type=int, default=5)
+    network_parser.add_argument("--hidden-size", type=int, default=64)
     main(**hierarchical_parse_args(parser))
 
 

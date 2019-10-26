@@ -12,99 +12,58 @@ def eval_init(string):
 
 
 class ConvDeConvNet(nn.Module):
-    def __init__(self, activation, init, num_layers, kernel_size):
+    def __init__(self, input_channels: int, output_channels: int, hidden_size: int):
         super(ConvDeConvNet, self).__init__()
-        activation = activation or nn.ReLU
-        init = init or nn.init.xavier_uniform_
-        assert num_layers % 2 == 0
-        assert kernel_size % 2 == 1
-        in_channels = 2
-        out_channels = 16
-        self.conv = nn.ModuleList()
-        for i in range(num_layers // 2 - 1):
-            self.conv.append(
-                nn.Sequential(
-                    nn.Conv2d(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        kernel_size=kernel_size,
-                        padding=kernel_size // 2,
-                    ),
-                    activation(),
-                    nn.MaxPool2d(kernel_size=kernel_size, return_indices=True),
-                )
-            )
-            in_channels = out_channels
-            out_channels *= 2
-        self.conv.append(
-            nn.Sequential(
-                nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    padding=kernel_size // 2,
-                ),
-                activation(),
-            )
-        )
-        self.max_un_pool = nn.ModuleList()
-        self.de_conv = nn.ModuleList()
-        for i in range(num_layers // 2 - 1):
-            in_channels = out_channels
-            out_channels //= 2
-            self.de_conv.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        kernel_size=kernel_size,
-                        padding=kernel_size // 2,
-                    ),
-                    activation(),
-                )
-            )
-            self.max_un_pool.append(nn.MaxUnpool2d(kernel_size=kernel_size))
-        self.de_conv.append(
-            nn.Sequential(
-                nn.ConvTranspose2d(
-                    in_channels=out_channels,
-                    out_channels=1,
-                    kernel_size=kernel_size,
-                    padding=kernel_size // 2,
-                ),
-                activation(),
-            )
+
+        # Size of z latent vector (i.e. size of generator input)
+        nz = 100
+
+        self.encoder = nn.Sequential(
+            # input is (input_channels) x 64 x 64
+            nn.Conv2d(input_channels, hidden_size, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size) x 32 x 32
+            nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*2) x 16 x 16
+            nn.Conv2d(hidden_size * 2, hidden_size * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*4) x 8 x 8
+            nn.Conv2d(hidden_size * 4, hidden_size * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*8) x 4 x 4
+            # nn.Conv2d(hidden_size * 8, 1, 4, 1, 0, bias=False),
         )
 
-        for module_list in [self.conv, self.de_conv]:
-            for layer in module_list:
-                for param in layer.parameters():
-                    if len(param.shape) > 1:
-                        init(param)
+        self.decoder = nn.Sequential(
+            # input is Z, going into a convolution
+            # nn.ConvTranspose2d(nz, hidden_size * 8, 4, 1, 0, bias=False),
+            # nn.BatchNorm2d(hidden_size * 8),
+            # nn.ReLU(True),
+            # state size. (hidden_size*8) x 4 x 4
+            nn.ConvTranspose2d(hidden_size * 8, hidden_size * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 4),
+            nn.ReLU(True),
+            # state size. (hidden_size*4) x 8 x 8
+            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 2),
+            nn.ReLU(True),
+            # state size. (hidden_size*2) x 16 x 16
+            nn.ConvTranspose2d(hidden_size * 2, hidden_size, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(True),
+            # state size. (hidden_size) x 32 x 32
+            nn.ConvTranspose2d(hidden_size, output_channels, 4, 2, 1, bias=False),
+            nn.Sigmoid()
+            # state size. (output_channels) x 64 x 64
+        )
 
     def forward(self, x):
-        x, indices, sizes = self.encode(x)
-        return self.decode(x, indices, sizes)
-
-    def decode(self, x, indices, sizes):
-        # noinspection PyTypeChecker
-        for de_conv, un_pool, i, size in zip(
-            self.de_conv, self.max_un_pool, reversed(indices), reversed(sizes)
-        ):
-            x = de_conv(x)
-            x = un_pool(x, i, size)
-        x = self.de_conv[-1](x)
-        return x.squeeze(1)
-
-    def encode(self, x):
-        sizes = []
-        indices = []
-        for conv in self.conv[:-1]:
-            sizes.append(x.size())
-            x, i = conv(x)
-            indices.append(i)
-        x = self.conv[-1](x)
-        return x, indices, sizes
+        z = self.encoder(x)
+        return self.decoder(z).squeeze(1)
 
 
 class DeepHierarchicalNetwork(nn.Module):
