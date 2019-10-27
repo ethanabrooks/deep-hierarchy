@@ -133,7 +133,12 @@ def train(
             if baseline:
                 img_output.unsqueeze_(0)
             img = torch.cat(
-                [data_img.unsqueeze(0), target[0].unsqueeze(0), output, img_output],
+                [
+                    data_img.unsqueeze(0),
+                    target[0].unsqueeze(0),
+                    output[0].unsqueeze(0),
+                    img_output,
+                ],
                 dim=0,
             ).unsqueeze(1)
             writer.add_images(
