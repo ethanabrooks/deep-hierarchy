@@ -13,16 +13,16 @@ class DeConvNet(nn.Module):
         self.decoder = nn.Sequential(
             # input is Z, going into a convolution
             # nn.ConvTranspose2d(nz, hidden_size * 8, 4, 1, 0, bias=False),
+            # nn.BatchNorm2d(hidden_size * 8),
+            # nn.ReLU(True),
+            # state size. (hidden_size*8) x 4 x 4
+            # nn.ConvTranspose2d(hidden_size * 8, hidden_size * 4, 8, 4, 2, bias=False),
             nn.BatchNorm2d(hidden_size * 4),
             nn.ReLU(True),
-            # state size. (hidden_size*8) x 4 x 4
-            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 8, 4, 2, bias=False),
+            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 16, 8, 4, bias=False),
             nn.BatchNorm2d(hidden_size * 2),
             nn.ReLU(True),
-            nn.ConvTranspose2d(hidden_size * 2, hidden_size * 1, 8, 4, 2, bias=False),
-            nn.BatchNorm2d(hidden_size * 1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(hidden_size, 1, 16, 8, 4, bias=False),
+            nn.ConvTranspose2d(hidden_size * 2, 1, 32, 16, 8, bias=False),
             # nn.BatchNorm2d(hidden_size * 2),
             # nn.ReLU(True),
             # nn.ConvTranspose2d(hidden_size, 1, 4, 2, 1, bias=False),
