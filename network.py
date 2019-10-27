@@ -36,8 +36,6 @@ class DeConvNet(nn.Module):
 
 
 class DeepHierarchicalNet(DeConvNet):
-    pass
-    """
     def __init__(
         self,
         arity: int,
@@ -59,6 +57,8 @@ class DeepHierarchicalNet(DeConvNet):
         self.pre_decode = nn.Sequential(
             nn.ReLU(True), nn.Linear(hidden_size, 8 * hidden_size), nn.ReLU(True)
         )
+
+    """
 
     def decompose(self, task_matrix):
         for task in task_matrix:
