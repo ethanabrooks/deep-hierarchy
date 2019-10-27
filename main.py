@@ -91,6 +91,7 @@ def main(
             writer=writer,
             start=start,
             curriculum_threshold=curriculum_threshold,
+            baseline=baseline,
         )
         dataset.increment_curriculum()
         network.increment_curriculum()
@@ -109,12 +110,15 @@ def train(
     writer,
     start,
     curriculum_threshold,
+    baseline,
 ):
     log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        output = network(data)
+        output = raw_output = network(data)
+        if not baseline:
+            output = output.sum(0).sigmoid()
         loss = F.mse_loss(output, target, reduction="mean")
         loss.backward()
         optimizer.step()
@@ -125,7 +129,12 @@ def train(
                 dataset.draw_points(data[0, :2].cpu(), data[0, 2:4].cpu(), array=array),
                 device=device,
             )[: dataset.size, : dataset.size]
-            img = torch.stack([data_img, target[0], output[0]], dim=0).unsqueeze(1)
+            img_output = raw_output[:, 0]
+            if baseline:
+                img_output.unsqueeze_(0)
+            img = torch.cat(
+                [data_img.unsqueeze(0), target[0].unsqueeze(0), img_output], dim=0
+            ).unsqueeze(1)
             writer.add_images(
                 "train image", img, dataformats="NCHW", global_step=i + start
             )

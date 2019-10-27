@@ -103,10 +103,8 @@ class DeepHierarchicalNet(DeConvNet):
         decoded = self.decoder(decoder_input).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
-        return (
-            decoded.view(task.size(0), task.size(1), decoded.size(1), decoded.size(2))
-            .sum(0)
-            .sigmoid()
+        return decoded.view(
+            task.size(0), task.size(1), decoded.size(1), decoded.size(2)
         )
 
     def increment_curriculum(self):
