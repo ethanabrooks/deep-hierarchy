@@ -55,7 +55,7 @@ class DeepHierarchicalNet(DeConvNet):
         )
         self.logits = nn.Sequential(nn.ReLU(True), nn.Linear(2 * hidden_size, 2))
         self.pre_decode = nn.Sequential(
-            nn.ReLU(True), nn.Linear(hidden_size, 8 * hidden_size), nn.ReLU(True)
+            nn.ReLU(True), nn.Linear(hidden_size, 4 * hidden_size), nn.ReLU(True)
         )
 
     def decompose(self, task_matrix):
@@ -66,7 +66,7 @@ class DeepHierarchicalNet(DeConvNet):
 
     def forward(self, x):
         task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
-        # task = self.embedding2(task).unsqueeze(0)
+        task = self.embedding2(task).unsqueeze(0)
         assert isinstance(task, torch.Tensor)
         not_done = torch.ones(x.size(0), 1, device=x.device)
 
@@ -94,9 +94,8 @@ class DeepHierarchicalNet(DeConvNet):
         # combine outputs
         # mask = (task != -1).any(dim=-1)
         # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
-        # decoder_input = self.pre_decode(task.sum(0)).unsqueeze(-1).unsqueeze(-1)
-        # decoded = self.decoder(decoder_input).squeeze(1)
-        decoded = self.decoder(task.unsqueeze(-1).unsqueeze(-1)).squeeze(1)
+        decoder_input = self.pre_decode(task.sum(0)).unsqueeze(-1).unsqueeze(-1)
+        decoded = self.decoder(decoder_input).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
         return decoded
