@@ -65,8 +65,8 @@ class DeepHierarchicalNet(DeConvNet):
             yield subtasks
 
     def forward(self, x):
-        z = self.embedding(x).view(x.size(0), -1, 1, 1)
-        return self.decoder(z).squeeze(1)
+        z = self.embedding(x).view(x.size(0), -1)
+        return self.decoder(z.unsqueeze(-1).unsqueeze(-1)).squeeze(1)
         """
         task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
         # task = self.embedding2(task).unsqueeze(0)
