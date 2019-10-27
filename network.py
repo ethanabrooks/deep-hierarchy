@@ -36,6 +36,8 @@ class DeConvNet(nn.Module):
 
 
 class DeepHierarchicalNet(DeConvNet):
+    pass
+    """
     def __init__(
         self,
         arity: int,
@@ -68,37 +70,3 @@ class DeepHierarchicalNet(DeConvNet):
         task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
         # task = self.embedding2(task).unsqueeze(0)
         """
-        assert isinstance(task, torch.Tensor)
-        not_done = torch.ones(x.size(0), 1, device=x.device)
-
-        # TODO depth first
-        for i in range(self.max_depth):
-            # TODO: cast goals back into goal-space
-
-            # done
-            # _, task_encoding = self.task_gru(task)
-            # logits_input = task_encoding.transpose(0, 1).reshape(x.size(0), -1)
-            # one_hot = F.gumbel_softmax(self.logits(logits_input), hard=True)
-            # # TODO allow asymmetric tree
-            # _, not_done = torch.split(not_done * one_hot, 1, dim=-1)  # done stays done
-
-            # decompose
-            # done = 1 - not_done
-            subtasks = F.relu(torch.cat(list(self.decompose(task)), dim=0))
-            task = subtasks
-            # relu ensures that padding is unique
-            # task = F.pad(
-            #     task, [0, 0, 0, 0, 0, subtasks.size(0) - task.size(0)], value=-1
-            # )
-            # task = done * task + not_done * subtasks
-
-        # combine outputs
-        # mask = (task != -1).any(dim=-1)
-        # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
-        # decoder_input = self.pre_decode(task.sum(0)).unsqueeze(-1).unsqueeze(-1)
-        # decoded = self.decoder(decoder_input).squeeze(1)
-        """
-        decoded = self.decoder(task.unsqueeze(-1).unsqueeze(-1)).squeeze(1)
-        # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
-        # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
-        return decoded.sigmoid()
