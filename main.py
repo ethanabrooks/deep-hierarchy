@@ -118,7 +118,7 @@ def train(
         optimizer.zero_grad()
         output = raw_output = network(data)
         if not baseline:
-            output = output.sum(0).sigmoid()
+            output = output.max(0).values
         loss = F.mse_loss(output, target, reduction="mean")
         loss.backward()
         optimizer.step()

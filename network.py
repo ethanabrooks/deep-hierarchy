@@ -105,7 +105,7 @@ class DeepHierarchicalNet(DeConvNet):
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
         return decoded.view(
             task.size(0), task.size(1), decoded.size(1), decoded.size(2)
-        )
+        ).sigmoid()
 
     def increment_curriculum(self):
         self.tree_depth += 1
