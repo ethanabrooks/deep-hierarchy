@@ -1,6 +1,7 @@
 from torch import nn as nn
 import torch
 import torch.nn.functional as F
+import gc
 
 
 class DeConvNet(nn.Module):
@@ -41,18 +42,22 @@ class DeepHierarchicalNet(DeConvNet):
         arity: int,
         hidden_size: int,
         num_gru_layers: int,
+        num_embeddings: int,
         max_depth: int,
         **kwargs,
     ):
-        super().__init__(**kwargs, hidden_size=hidden_size)
+        super().__init__(
+            **kwargs, hidden_size=hidden_size, num_embeddings=num_embeddings
+        )
         self.hidden_size = hidden_size
         self.max_depth = max_depth
         self.arity = arity
         self.task_splitter = nn.GRU(hidden_size, hidden_size, num_layers=num_gru_layers)
         self.task_gru = nn.GRU(hidden_size, hidden_size, bidirectional=True)
-        self.embedding2 = nn.Sequential(
-            nn.ReLU(True), nn.Linear(4 * self.embedding.embedding_dim, hidden_size)
+        self.embedding = nn.Embedding(
+            num_embeddings=num_embeddings + 1, embedding_dim=hidden_size // 4
         )
+        gc.collect()
         self.logits = nn.Sequential(nn.ReLU(True), nn.Linear(2 * hidden_size, 2))
         self.pre_decode = nn.Sequential(
             nn.ReLU(True), nn.Linear(hidden_size, 4 * hidden_size), nn.ReLU(True)
@@ -65,8 +70,7 @@ class DeepHierarchicalNet(DeConvNet):
             yield subtasks
 
     def forward(self, x):
-        task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
-        task = self.embedding2(task).unsqueeze(0)
+        task = self.embedding(x).view(1, x.size(0), -1)  # type:torch.Tensor
         assert isinstance(task, torch.Tensor)
         not_done = torch.ones(x.size(0), 1, device=x.device)
 
@@ -94,8 +98,12 @@ class DeepHierarchicalNet(DeConvNet):
         # combine outputs
         # mask = (task != -1).any(dim=-1)
         # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
-        decoder_input = self.pre_decode(task.sum(0)).unsqueeze(-1).unsqueeze(-1)
+        decoder_input = (
+            self.pre_decode(task.view(-1, self.hidden_size)).unsqueeze(-1).unsqueeze(-1)
+        )
         decoded = self.decoder(decoder_input).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
-        return decoded
+        return decoded.view(
+            task.size(0), task.size(1), decoded.size(1), decoded.size(2)
+        ).sum(0)
