@@ -108,15 +108,20 @@ def train(
     curriculum_threshold,
     max_curriculum,
     baseline,
+    aux_coef,
 ):
     log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = raw_output = network(data)
-        if not baseline:
+        if baseline:
+            aux_loss = 0
+        else:
             output = output.max(0).values
-        loss = F.mse_loss(output, target, reduction="mean")
+            aux_loss = output.prod(dim=0).mean()
+        mse_loss = F.mse_loss(output, target, reduction="mean")
+        loss = mse_loss + aux_coef * aux_loss
         loss.backward()
         optimizer.step()
         if i % log_interval == 0:
@@ -183,6 +188,7 @@ def cli():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument("--curriculum-threshold", type=float, default=5e-4, help=" ")
+    parser.add_argument("--aux-coef", type=float, default=0.01, help=" ")
     parser.add_argument("--max-curriculum", type=int, default=5)
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
