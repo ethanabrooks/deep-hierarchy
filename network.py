@@ -7,7 +7,7 @@ class ConvDeConvNet(nn.Module):
     def __init__(self, hidden_size: int, num_embeddings: int):
         super(ConvDeConvNet, self).__init__()
         self.embedding = nn.Embedding(
-            num_embeddings=num_embeddings + 1, embedding_dim=hidden_size * 2
+            num_embeddings=num_embeddings + 1, embedding_dim=hidden_size
         )
 
         self.decoder = nn.Sequential(
@@ -16,16 +16,16 @@ class ConvDeConvNet(nn.Module):
             # nn.BatchNorm2d(hidden_size * 8),
             # nn.ReLU(True),
             # state size. (hidden_size*8) x 4 x 4
-            nn.ConvTranspose2d(hidden_size * 8, hidden_size * 4, 8, 4, 2, bias=False),
+            # nn.ConvTranspose2d(hidden_size * 8, hidden_size * 4, 8, 4, 2, bias=False),
             nn.BatchNorm2d(hidden_size * 4),
             nn.ReLU(True),
-            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 8, 4, 2, bias=False),
+            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 16, 8, 4, bias=False),
             nn.BatchNorm2d(hidden_size * 2),
             nn.ReLU(True),
-            nn.ConvTranspose2d(hidden_size * 2, hidden_size, 8, 4, 2, bias=False),
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(hidden_size, 1, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(hidden_size * 2, 1, 32, 16, 8, bias=False),
+            # nn.BatchNorm2d(hidden_size * 2),
+            # nn.ReLU(True),
+            # nn.ConvTranspose2d(hidden_size, 1, 4, 2, 1, bias=False),
             nn.Sigmoid()
             # state size. (output_channels) x 64 x 64
         )
