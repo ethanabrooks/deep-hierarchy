@@ -2,6 +2,7 @@
 import argparse
 import itertools
 
+import imageio
 import numpy as np
 import skimage.draw
 import skimage.transform
@@ -192,8 +193,15 @@ class FourRooms(IterableDataset):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--size", type=int, default=100)
-    parser.add_argument("--distance", type=int, default=53.03300858899107)
+    parser.add_argument("--room-size", type=int, default=128)
+    parser.add_argument("--len-dataset", type=int, default=100)
+    parser.add_argument("--distance", type=float, default=53.03300858899107)
     parser.add_argument("--seed", type=int, default=0)
     np.set_printoptions(linewidth=1000, threshold=1000)
     dataset = FourRooms(**vars(parser.parse_args()))
+    data, target = next(iter(dataset))
+    data_img = torch.tensor(
+        dataset.draw_points(data[:2], data[2:4], array=dataset.empty_rooms)
+    )
+    imageio.imwrite("/tmp/x.png", np.rot90(data_img))
+    imageio.imwrite("/tmp/y.png", np.rot90(target))
