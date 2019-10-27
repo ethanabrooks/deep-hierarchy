@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from four_rooms import FourRooms
-from network import ConvDeConvNet, DeepHierarchicalNet
+from network import DeConvNet, DeepHierarchicalNet
 
 try:
     from StringIO import StringIO
@@ -66,7 +66,7 @@ def main(
     train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, **kwargs)
     baseline_args.update(num_embeddings=dataset.size)
     if baseline:
-        network = ConvDeConvNet(**baseline_args)
+        network = DeConvNet(**baseline_args)
     else:
         network = DeepHierarchicalNet(**deep_hierarchical_args, **baseline_args)
     network = network.to(device)
