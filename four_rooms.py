@@ -190,6 +190,9 @@ class FourRooms(IterableDataset):
     def __len__(self):
         return self.len
 
+    def increment_curriculum(self):
+        self.distance *= 2
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import argparse
 import csv
+import itertools
 import random
 import subprocess
 from pathlib import Path
@@ -37,6 +38,7 @@ def main(
     log_dir: Path,
     run_id: str,
     baseline: bool,
+    curriculum_threshold: float,
     four_rooms_args: dict,
     baseline_args: dict,
     deep_hierarchical_args: dict,
@@ -63,7 +65,6 @@ def main(
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     dataset = FourRooms(**four_rooms_args, room_size=128)
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, **kwargs)
     baseline_args.update(num_embeddings=dataset.size)
     if baseline:
         network = DeConvNet(**baseline_args)
@@ -72,14 +73,50 @@ def main(
     network = network.to(device)
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
+    start = 0
 
+    for curriculum_level in itertools.count():
+        train_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, **kwargs
+        )
+        start = train(
+            dataset=dataset,
+            device=device,
+            log_dir=log_dir,
+            log_interval=log_interval,
+            network=network,
+            optimizer=optimizer,
+            save_interval=save_interval,
+            train_loader=train_loader,
+            writer=writer,
+            start=start,
+            curriculum_threshold=curriculum_threshold,
+        )
+        dataset.increment_curriculum()
+        network.increment_curriculum()
+        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
+
+
+def train(
+    dataset,
+    device,
+    log_dir,
+    log_interval,
+    network,
+    optimizer,
+    save_interval,
+    train_loader,
+    writer,
+    start,
+    curriculum_threshold,
+):
     log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = network(data)
-        mean_mse_loss = F.mse_loss(output, target, reduction="mean")
-        mean_mse_loss.backward()
+        loss = F.mse_loss(output, target, reduction="mean")
+        loss.backward()
         optimizer.step()
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
@@ -89,37 +126,15 @@ def main(
                 device=device,
             )[: dataset.size, : dataset.size]
             img = torch.stack([data_img, target[0], output[0]], dim=0).unsqueeze(1)
-            writer.add_images("train image", img, dataformats="NCHW", global_step=i)
-            for name, loss in [
-                ("mean_mse_loss", mean_mse_loss),
-                ("sum_mse_loss", F.mse_loss(output, target, reduction="sum")),
-                ("sum_l1_loss", F.l1_loss(output, target, reduction="sum")),
-                ("mean_l1_loss", F.l1_loss(output, target, reduction="mean")),
-                (
-                    "sum_smooth_l1_loss",
-                    F.smooth_l1_loss(output, target, reduction="sum"),
-                ),
-                (
-                    "mean_smooth_l1_loss",
-                    F.smooth_l1_loss(output, target, reduction="mean"),
-                ),
-                (
-                    "mean_poisson_nll_loss",
-                    F.poisson_nll_loss(
-                        output, target, reduction="mean", log_input=False
-                    ),
-                ),
-                (
-                    "sum_poisson_nll_loss",
-                    F.poisson_nll_loss(
-                        output, target, reduction="sum", log_input=False
-                    ),
-                ),
-            ]:
-                writer.add_scalar(name, loss, global_step=i)
+            writer.add_images(
+                "train image", img, dataformats="NCHW", global_step=i + start
+            )
+            writer.add_scalar("loss", loss, global_step=i + start)
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
+        if loss < curriculum_threshold:
+            return i
 
 
 def cli():
@@ -155,6 +170,7 @@ def cli():
         metavar="N",
         help="how many batches to wait before logging training status",
     )
+    parser.add_argument("--curriculum-threshold", type=float, default=0.01, help=" ")
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     parser.add_argument("--baseline", action="store_true")

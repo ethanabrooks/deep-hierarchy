@@ -49,7 +49,7 @@ class DeepHierarchicalNet(DeConvNet):
             **kwargs, hidden_size=hidden_size, num_embeddings=num_embeddings
         )
         self.hidden_size = hidden_size
-        self.max_depth = max_depth
+        self.tree_depth = max_depth
         self.arity = arity
         self.task_splitter = nn.GRU(hidden_size, hidden_size, num_layers=num_gru_layers)
         self.task_gru = nn.GRU(hidden_size, hidden_size, bidirectional=True)
@@ -74,7 +74,7 @@ class DeepHierarchicalNet(DeConvNet):
         not_done = torch.ones(x.size(0), 1, device=x.device)
 
         # TODO depth first
-        for i in range(self.max_depth):
+        for i in range(self.tree_depth):
             # TODO: cast goals back into goal-space
 
             # done
@@ -108,3 +108,6 @@ class DeepHierarchicalNet(DeConvNet):
             .sum(0)
             .sigmoid()
         )
+
+    def increment_curriculum(self):
+        self.tree_depth += 1
