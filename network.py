@@ -65,8 +65,7 @@ class DeepHierarchicalNet(DeConvNet):
             yield subtasks
 
     def forward(self, x):
-        z = self.embedding(x).view(x.size(0), -1, 1, 1)
-        return self.decoder(z).squeeze(1)
+        task = self.embedding(x).view(x.size(0), -1)
         """
         task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
         # task = self.embedding2(task).unsqueeze(0)
@@ -104,3 +103,4 @@ class DeepHierarchicalNet(DeConvNet):
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
         return decoded.sigmoid()
     """
+        return self.decoder(task.unsqueeze(-1).unsqueeze(-1)).squeeze(1).sigmoid()
