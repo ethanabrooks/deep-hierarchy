@@ -15,7 +15,6 @@ class DeConvNet(nn.Module):
             # nn.ConvTranspose2d(nz, hidden_size * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(hidden_size * 4),
             nn.ReLU(True),
-            # state size. (hidden_size*8) x 4 x 4
             nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 8, 4, 2, bias=False),
             nn.BatchNorm2d(hidden_size * 2),
             nn.ReLU(True),
@@ -67,7 +66,6 @@ class DeepHierarchicalNet(DeConvNet):
     def forward(self, x):
         task = self.embedding(x).view(x.size(0), -1)  # type:torch.Tensor
         # task = self.embedding2(task).unsqueeze(0)
-        """
         assert isinstance(task, torch.Tensor)
         not_done = torch.ones(x.size(0), 1, device=x.device)
 
@@ -97,7 +95,6 @@ class DeepHierarchicalNet(DeConvNet):
         # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
         # decoder_input = self.pre_decode(task.sum(0)).unsqueeze(-1).unsqueeze(-1)
         # decoded = self.decoder(decoder_input).squeeze(1)
-        """
         decoded = self.decoder(task.unsqueeze(-1).unsqueeze(-1)).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
