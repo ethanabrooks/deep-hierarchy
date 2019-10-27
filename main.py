@@ -133,12 +133,7 @@ def train(
             if baseline:
                 img_output.unsqueeze_(0)
             img = torch.cat(
-                [
-                    data_img.unsqueeze(0),
-                    target[0].unsqueeze(0),
-                    img_output.sum(0, keepdim=True),
-                    img_output,
-                ],
+                [data_img.unsqueeze(0), target[0].unsqueeze(0), output, img_output],
                 dim=0,
             ).unsqueeze(1)
             writer.add_images(
@@ -185,14 +180,14 @@ def cli():
         metavar="N",
         help="how many batches to wait before logging training status",
     )
-    parser.add_argument("--curriculum-threshold", type=float, default=0.01, help=" ")
+    parser.add_argument("--curriculum-threshold", type=float, default=5e-4, help=" ")
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     parser.add_argument("--baseline", action="store_true")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
     # four_rooms_parser.add_argument("--room-size", type=int, default=128)
     four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
-    four_rooms_parser.add_argument("--len-dataset", type=int, default=int(1e5), help="")
+    four_rooms_parser.add_argument("--len-dataset", type=int, help="")
     baseline_parser = parser.add_argument_group("baseline_args")
     baseline_parser.add_argument("--hidden-size", type=int, default=64)
     deep_hierarchical_parser = parser.add_argument_group("deep_hierarchical_args")
