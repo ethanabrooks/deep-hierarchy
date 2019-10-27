@@ -33,19 +33,15 @@ def main(
     seed: int,
     batch_size: int,
     lr: float,
-    log_interval: int,
-    save_interval: int,
     log_dir: Path,
     run_id: str,
     baseline: bool,
-    curriculum_threshold: float,
     four_rooms_args: dict,
     baseline_args: dict,
     deep_hierarchical_args: dict,
+    **kwargs
 ):
     use_cuda = not no_cuda and torch.cuda.is_available()
-    writer = SummaryWriter(str(log_dir))
-
     torch.manual_seed(seed)
 
     if use_cuda:
@@ -63,7 +59,6 @@ def main(
     else:
         device = "cpu"
 
-    kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
     dataset = FourRooms(**four_rooms_args, room_size=128)
     baseline_args.update(num_embeddings=dataset.size)
     if baseline:
@@ -71,31 +66,32 @@ def main(
     else:
         network = DeepHierarchicalNet(**deep_hierarchical_args, **baseline_args)
     network = network.to(device)
-    optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
     start = 0
 
     for curriculum_level in itertools.count():
         train_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, **kwargs
+            dataset,
+            batch_size=batch_size,
+            **(dict(num_workers=1, pin_memory=True) if use_cuda else dict())
         )
         start = train(
             dataset=dataset,
             device=device,
             log_dir=log_dir,
-            log_interval=log_interval,
             network=network,
-            optimizer=optimizer,
-            save_interval=save_interval,
+            optimizer=(optim.Adam(network.parameters(), lr=lr)),
             train_loader=train_loader,
-            writer=writer,
+            writer=SummaryWriter(str(log_dir)),
             start=start,
-            curriculum_threshold=curriculum_threshold,
             baseline=baseline,
+            **kwargs
         )
         dataset.increment_curriculum()
         network.increment_curriculum()
-        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
+        SummaryWriter(str(log_dir)).add_scalar(
+            "curriculum level", curriculum_level, global_step=start
+        )
 
 
 def train(
@@ -110,6 +106,7 @@ def train(
     writer,
     start,
     curriculum_threshold,
+    max_curriculum,
     baseline,
 ):
     log_progress = None
@@ -148,7 +145,7 @@ def train(
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
-        if loss < curriculum_threshold:
+        if loss < curriculum_threshold and i < max_curriculum:
             return i
 
 
@@ -186,19 +183,19 @@ def cli():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument("--curriculum-threshold", type=float, default=5e-4, help=" ")
+    parser.add_argument("--max-curriculum", type=int, default=5)
     parser.add_argument("--log-dir", default="/tmp/mnist", metavar="N", help="")
     parser.add_argument("--run-id", default="", metavar="N", help="")
     parser.add_argument("--baseline", action="store_true")
     four_rooms_parser = parser.add_argument_group("four_rooms_args")
     # four_rooms_parser.add_argument("--room-size", type=int, default=128)
-    four_rooms_parser.add_argument("--distance", type=float, default=100, help="")
+    four_rooms_parser.add_argument("--distance", type=float, default=8, help="")
     four_rooms_parser.add_argument("--len-dataset", type=int, help="")
     baseline_parser = parser.add_argument_group("baseline_args")
     baseline_parser.add_argument("--hidden-size", type=int, default=64)
     deep_hierarchical_parser = parser.add_argument_group("deep_hierarchical_args")
     deep_hierarchical_parser.add_argument("--arity", type=int, default=2)
     deep_hierarchical_parser.add_argument("--num-gru-layers", type=int, default=2)
-    deep_hierarchical_parser.add_argument("--max-depth", type=int, default=5)
     main(**hierarchical_parse_args(parser))
 
 
