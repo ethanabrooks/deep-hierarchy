@@ -96,15 +96,17 @@ class DeepHierarchicalNet(DeConvNet):
         # combine outputs
         # mask = (task != -1).any(dim=-1)
         # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
+        aux_loss = F.pdist(task.view(task.size(0), -1).clone()).mean()
         decoder_input = (
             self.pre_decode(task.view(-1, self.hidden_size)).unsqueeze(-1).unsqueeze(-1)
         )
         decoded = self.decoder(decoder_input).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
-        return decoded.view(
+        output = decoded.view(
             task.size(0), task.size(1), decoded.size(1), decoded.size(2)
         ).sigmoid()
+        return output, aux_loss
 
     def increment_curriculum(self):
         self.tree_depth += 1

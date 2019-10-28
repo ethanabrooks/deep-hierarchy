@@ -116,12 +116,12 @@ def train(
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        output = raw_output = network(data)
         if baseline:
+            output = network(data)
             aux_loss = 0
         else:
+            output, aux_loss = raw_output, _ = network(data)
             output = output.max(0).values
-            aux_loss = output.prod(dim=0).mean() * (curriculum_level > 0)
         mse_loss = F.mse_loss(output, target, reduction="mean")
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
