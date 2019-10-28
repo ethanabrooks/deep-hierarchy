@@ -129,9 +129,18 @@ def train(
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
         optimizer.step()
+        step = i + start
         if i % log_interval == 0:
             log_progress = tqdm(total=log_interval, desc="next log")
             array = dataset.empty_rooms.copy()
+            writer.add_scalar("mse_loss", mse_loss, step)
+            writer.add_scalar("loss", loss, step)
+            writer.add_scalar("loss_minus_level", loss - curriculum_level, step)
+            writer.add_scalar("avg_loss", total_loss / i, step)
+            writer.add_scalar("aux_loss", aux_loss, step)
+            writer.add_scalar("curriculum_level", curriculum_level, step)
+
+            # images
             data_img = torch.tensor(
                 dataset.draw_points(data[0, :2].cpu(), data[0, 2:4].cpu(), array=array),
                 device=device,
@@ -139,28 +148,17 @@ def train(
             img = torch.stack([data_img, target[0], output[0]], dim=0)
             if not baseline:
                 img = torch.cat([img, raw_output[:, 0]], dim=0)
+                writer.add_scalar("overlap", (raw_output.sum(0) - output).mean(), step)
+                writer.add_scalar("tree_depth", network.tree_depth, step)
             writer.add_images(
-                "train image",
-                img.unsqueeze(1),
-                dataformats="NCHW",
-                global_step=i + start,
+                "train image", img.unsqueeze(1), dataformats="NCHW", global_step=step
             )
-            writer.add_scalar("mse_loss", mse_loss, global_step=i + start)
-            writer.add_scalar("loss", loss, global_step=i + start)
-        writer.add_scalar(
-            "loss_minus_level", loss - curriculum_level, global_step=i + start
-        )
-        writer.add_scalar("avg_loss", total_loss / i, global_step=i + start)
-        writer.add_scalar("aux_loss", aux_loss, global_step=i + start)
-        writer.add_scalar("curriculum_level", curriculum_level, global_step=i + start)
-        if not baseline:
-            writer.add_scalar("tree_depth", network.tree_depth, global_step=i + start)
 
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
         if total_loss / i < curriculum_threshold and curriculum_level < max_curriculum:
-            return i + start
+            return step
 
 
 def cli():
