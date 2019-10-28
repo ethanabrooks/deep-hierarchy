@@ -113,6 +113,7 @@ def train(
     baseline,
     aux_coef,
 ):
+    total_loss = 0
     log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -124,6 +125,7 @@ def train(
             output, aux_loss = raw_output, _ = network(data)
             output = output.max(0).values
         mse_loss = F.mse_loss(output, target, reduction="mean")
+        total_loss += mse_loss
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
         optimizer.step()
@@ -156,7 +158,7 @@ def train(
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
-        if loss < curriculum_threshold and curriculum_level < max_curriculum:
+        if total_loss / i < curriculum_threshold and curriculum_level < max_curriculum:
             return i + start
 
 
