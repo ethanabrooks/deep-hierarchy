@@ -73,6 +73,7 @@ def main(
     start = 0
 
     for curriculum_level in itertools.count():
+        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
         train_loader = torch.utils.data.DataLoader(
             dataset,
             batch_size=batch_size,
@@ -93,7 +94,6 @@ def main(
         )
         dataset.increment_curriculum()
         network.increment_curriculum()
-        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
 
 
 def train(
