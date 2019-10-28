@@ -63,7 +63,7 @@ class DeepHierarchicalNet(DeConvNet):
 
     def decompose(self, task_matrix):
         for task in task_matrix:
-            gru_input = task.unsqueeze(0).expand((self.arity, -1, -1))
+            gru_input = task[None].expand((self.arity, -1, -1))
             subtasks, _ = self.task_splitter(gru_input)
             yield subtasks
 
@@ -100,10 +100,8 @@ class DeepHierarchicalNet(DeConvNet):
             aux_loss = -torch.norm(task[None] - task[:, None], dim=3).mean()
         else:
             aux_loss = 0
-        decoder_input = self.pre_decode(task.view(-1, self.hidden_size))[
-            :, :, None, None
-        ]
-        decoded = self.decoder(decoder_input).squeeze(1)
+        decoder_input = self.pre_decode(task.view(-1, self.hidden_size))
+        decoded = self.decoder(decoder_input[:, :, None, None]).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination
         output = decoded.view(
