@@ -149,11 +149,14 @@ def train(
                 "train image", img, dataformats="NCHW", global_step=i + start
             )
             writer.add_scalar("loss", loss, global_step=i + start)
+        writer.add_scalar(
+            "loss_minus_level", loss - curriculum_level, global_step=i + start
+        )
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
         if loss < curriculum_threshold and curriculum_level < max_curriculum:
-            return i
+            return i + start
 
 
 def cli():
