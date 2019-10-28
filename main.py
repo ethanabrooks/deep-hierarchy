@@ -85,6 +85,7 @@ def main(
             writer=SummaryWriter(str(log_dir)),
             start=start,
             baseline=baseline,
+            curriculum_level=curriculum_level,
             **kwargs
         )
         dataset.increment_curriculum()
@@ -106,6 +107,7 @@ def train(
     writer,
     start,
     curriculum_threshold,
+    curriculum_level,
     max_curriculum,
     baseline,
     aux_coef,
@@ -119,7 +121,7 @@ def train(
             aux_loss = 0
         else:
             output = output.max(0).values
-            aux_loss = output.prod(dim=0).mean()
+            aux_loss = output.prod(dim=0).mean() * (curriculum_level > 0)
         mse_loss = F.mse_loss(output, target, reduction="mean")
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
@@ -150,7 +152,7 @@ def train(
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
-        if loss < curriculum_threshold and i < max_curriculum:
+        if loss < curriculum_threshold and curriculum_level < max_curriculum:
             return i
 
 
