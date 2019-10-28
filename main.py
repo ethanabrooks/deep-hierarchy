@@ -156,6 +156,9 @@ def train(
         )
         writer.add_scalar("avg_loss", total_loss / i, global_step=i + start)
         writer.add_scalar("curriculum_level", curriculum_level, global_step=i + start)
+        if not baseline:
+            writer.add_scalar("tree_depth", network.tree_depth, global_step=i + start)
+
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
