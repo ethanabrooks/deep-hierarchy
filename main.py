@@ -42,6 +42,8 @@ def main(
     **kwargs
 ):
     use_cuda = not no_cuda and torch.cuda.is_available()
+    writer = SummaryWriter(str(log_dir))
+
     torch.manual_seed(seed)
 
     if use_cuda:
@@ -66,6 +68,7 @@ def main(
     else:
         network = DeepHierarchicalNet(**deep_hierarchical_args, **baseline_args)
     network = network.to(device)
+    optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
     start = 0
 
@@ -80,9 +83,9 @@ def main(
             device=device,
             log_dir=log_dir,
             network=network,
-            optimizer=(optim.Adam(network.parameters(), lr=lr)),
+            optimizer=optimizer,
             train_loader=train_loader,
-            writer=SummaryWriter(str(log_dir)),
+            writer=writer,
             start=start,
             baseline=baseline,
             curriculum_level=curriculum_level,
@@ -90,9 +93,7 @@ def main(
         )
         dataset.increment_curriculum()
         network.increment_curriculum()
-        SummaryWriter(str(log_dir)).add_scalar(
-            "curriculum level", curriculum_level, global_step=start
-        )
+        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
 
 
 def train(
