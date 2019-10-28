@@ -73,7 +73,6 @@ def main(
     start = 0
 
     for curriculum_level in itertools.count():
-        writer.add_scalar("curriculum level", curriculum_level, global_step=start)
         train_loader = torch.utils.data.DataLoader(
             dataset,
             batch_size=batch_size,
@@ -155,6 +154,8 @@ def train(
         writer.add_scalar(
             "loss_minus_level", loss - curriculum_level, global_step=i + start
         )
+        writer.add_scalar("avg_loss", total_loss / i, global_step=i + start)
+        writer.add_scalar("curriculum_level", curriculum_level, global_step=i + start)
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
