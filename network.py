@@ -96,10 +96,13 @@ class DeepHierarchicalNet(DeConvNet):
         # combine outputs
         # mask = (task != -1).any(dim=-1)
         # decoder_input = self.pre_decode(task[mask]).unsqueeze(-1).unsqueeze(-1)
-        aux_loss = F.pdist(task.view(task.size(0), -1).clone()).mean()
-        decoder_input = (
-            self.pre_decode(task.view(-1, self.hidden_size)).unsqueeze(-1).unsqueeze(-1)
-        )
+        if task.size(0) > 1:
+            aux_loss = -torch.norm(task[None] - task[:, None], dim=3).mean()
+        else:
+            aux_loss = 0
+        decoder_input = self.pre_decode(task.view(-1, self.hidden_size))[
+            :, :, None, None
+        ]
         decoded = self.decoder(decoder_input).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
         # return padded.sum(0).sigmoid()  # TODO: other kinds of combination

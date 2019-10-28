@@ -123,9 +123,8 @@ def train(
         else:
             output, aux_loss = raw_output, _ = network(data)
             output = output.max(0).values
-        loss = F.mse_loss(output, target, reduction="mean")
-        if not torch.isnan(aux_loss).item():
-            loss += aux_coef * aux_loss
+        mse_loss = F.mse_loss(output, target, reduction="mean")
+        loss = mse_loss + aux_coef * aux_loss
         loss.backward()
         optimizer.step()
         if i % log_interval == 0:
