@@ -73,6 +73,7 @@ def main(
     start = 0
 
     for curriculum_level in itertools.count():
+        print("Curriculum at level", curriculum_level)
         writer.add_scalar("curriculum level", curriculum_level, global_step=start)
         train_loader = torch.utils.data.DataLoader(
             dataset,
@@ -93,7 +94,8 @@ def main(
             **kwargs
         )
         dataset.increment_curriculum()
-        network.increment_curriculum()
+        if not baseline:
+            network.increment_curriculum()
 
 
 def train(
