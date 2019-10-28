@@ -119,7 +119,7 @@ def train(
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         if baseline:
-            output = network(data)
+            output = raw_output = network(data)
             aux_loss = 0
         else:
             output, aux_loss = raw_output, _ = network(data)
@@ -136,21 +136,16 @@ def train(
                 dataset.draw_points(data[0, :2].cpu(), data[0, 2:4].cpu(), array=array),
                 device=device,
             )[: dataset.size, : dataset.size]
-            img_output = raw_output[:, 0]
-            if baseline:
-                img_output.unsqueeze_(0)
-            img = torch.cat(
-                [
-                    data_img.unsqueeze(0),
-                    target[0].unsqueeze(0),
-                    output[0].unsqueeze(0),
-                    img_output,
-                ],
-                dim=0,
-            ).unsqueeze(1)
+            img = torch.stack([data_img, target[0], output[0]], dim=0)
+            if not baseline:
+                img = torch.cat([img, raw_output[:, 0]], dim=0)
             writer.add_images(
-                "train image", img, dataformats="NCHW", global_step=i + start
+                "train image",
+                img.unsqueeze(1),
+                dataformats="NCHW",
+                global_step=i + start,
             )
+            writer.add_scalar("mse_loss", mse_loss, global_step=i + start)
             writer.add_scalar("loss", loss, global_step=i + start)
         writer.add_scalar(
             "loss_minus_level", loss - curriculum_level, global_step=i + start
