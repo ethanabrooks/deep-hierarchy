@@ -100,6 +100,14 @@ class DeepHierarchicalNet(DeConvNet):
             aux_loss = -torch.norm(task[None] - task[:, None], dim=3).mean()
         else:
             aux_loss = 0
+        if self.tree_depth == 0:
+            output = self.decode(task)
+        else:
+            with torch.no_grad():
+                output = self.decode(task)
+        return output, aux_loss
+
+    def decode(self, task):
         decoder_input = self.pre_decode(task.view(-1, self.hidden_size))
         decoded = self.decoder(decoder_input[:, :, None, None]).squeeze(1)
         # padded = nn.utils.rnn.pad_sequence(torch.split(decoded, tuple(mask.sum(0))))
@@ -107,7 +115,7 @@ class DeepHierarchicalNet(DeConvNet):
         output = decoded.view(
             task.size(0), task.size(1), decoded.size(1), decoded.size(2)
         ).sigmoid()
-        return output, aux_loss
+        return output
 
     def increment_curriculum(self):
         self.tree_depth += 1
