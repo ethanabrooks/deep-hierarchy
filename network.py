@@ -47,6 +47,7 @@ class DeepHierarchicalNet(DeConvNet):
         super().__init__(
             **kwargs, hidden_size=hidden_size, num_embeddings=num_embeddings
         )
+        self.de_conv_parameters = list(super().parameters())
         self.hidden_size = hidden_size
         self.tree_depth = 0
         self.arity = arity
@@ -59,6 +60,15 @@ class DeepHierarchicalNet(DeConvNet):
         self.logits = nn.Sequential(nn.ReLU(True), nn.Linear(2 * hidden_size, 2))
         self.pre_decode = nn.Sequential(
             nn.ReLU(True), nn.Linear(hidden_size, 4 * hidden_size), nn.ReLU(True)
+        )
+        self.hierarchy_modules = nn.ModuleList(
+            [
+                self.task_splitter,
+                self.task_gru,
+                self.embedding,
+                self.logits,
+                self.pre_decode,
+            ]
         )
 
     def decompose(self, task_matrix):
@@ -100,11 +110,7 @@ class DeepHierarchicalNet(DeConvNet):
             aux_loss = -torch.norm(task[None] - task[:, None], dim=3).mean()
         else:
             aux_loss = 0
-        if self.tree_depth == 0:
-            output = self.decode(task)
-        else:
-            with torch.no_grad():
-                output = self.decode(task)
+        output = self.decode(task)
         return output, aux_loss
 
     def decode(self, task):
@@ -119,3 +125,9 @@ class DeepHierarchicalNet(DeConvNet):
 
     def increment_curriculum(self):
         self.tree_depth += 1
+
+    def level0_parameters(self):
+        return iter(self.de_conv_parameters)
+
+    def parameters(self, **kwargs):
+        return self.hierarchy_modules.parameters(**kwargs)

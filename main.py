@@ -68,6 +68,9 @@ def main(
     else:
         network = DeepHierarchicalNet(**deep_hierarchical_args, **baseline_args)
     network = network.to(device)
+    level0_optimizer = (
+        None if baseline else optim.Adam(network.level0_parameters(), lr=lr)
+    )
     optimizer = optim.Adam(network.parameters(), lr=lr)
     network.train()
     start = 0
@@ -85,6 +88,7 @@ def main(
             device=device,
             log_dir=log_dir,
             network=network,
+            level0_optimizer=level0_optimizer,
             optimizer=optimizer,
             train_loader=train_loader,
             writer=writer,
@@ -104,6 +108,7 @@ def train(
     log_dir,
     log_interval,
     network,
+    level0_optimizer,
     optimizer,
     save_interval,
     train_loader,
@@ -119,6 +124,8 @@ def train(
     log_progress = None
     for i, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
+        if not baseline:
+            level0_optimizer.zero_grad()
         optimizer.zero_grad()
         if baseline:
             output = raw_output = network(data)
@@ -130,6 +137,8 @@ def train(
         total_loss += mse_loss
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
+        if curriculum_level == 0 and not baseline:
+            level0_optimizer.step()
         optimizer.step()
         step = i + start
         if i % log_interval == 0:
