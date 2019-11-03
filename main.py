@@ -137,7 +137,8 @@ def train(
         total_loss += mse_loss
         loss = mse_loss + aux_coef * aux_loss
         loss.backward()
-        if curriculum_level == 0 and not baseline:
+        avg_loss = total_loss / i
+        if curriculum_level == 0 and not baseline or avg_loss < 4e-4:
             level0_optimizer.step()
         optimizer.step()
         step = i + start
@@ -147,7 +148,7 @@ def train(
             writer.add_scalar("mse_loss", mse_loss, step)
             writer.add_scalar("loss", loss, step)
             writer.add_scalar("loss_minus_level", loss - curriculum_level, step)
-            writer.add_scalar("avg_loss", total_loss / i, step)
+            writer.add_scalar("avg_loss", avg_loss, step)
             writer.add_scalar("aux_loss", aux_loss, step)
             writer.add_scalar("curriculum_level", curriculum_level, step)
 
@@ -168,7 +169,7 @@ def train(
         if i % save_interval == 0:
             torch.save(network.state_dict(), str(Path(log_dir, "network.pt")))
         log_progress.update()
-        if total_loss / i < curriculum_threshold and curriculum_level < max_curriculum:
+        if avg_loss < curriculum_threshold and curriculum_level < max_curriculum:
             return step
 
 
